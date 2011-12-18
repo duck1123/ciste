@@ -16,25 +16,25 @@ main idea revolves around matching a request to a action variable and
 a pair of format and serialization parameters.
 
 The action is simply a function that accepts a request and returns
-either a record of some sort (or a sequence of), or nil.
+either: a record of some sort (or a sequence of them); or nil.
 
 The response of the action method is then passed to the apply-view
 family of multimethods. The view will match the combination of action
 (expressed as a var) and the format (a keyword). The view will return
-a logically true value. (generally a hash) If there is no view defined
+a logically true value (generally a hash). If there is no view defined
 for both the action and the format, a view will be searched for using
 only the format. This allows generic handlers to be defined for a
-format. (ie. converting the structure to JSON)
+format (eg, converting the structure to JSON).
 
 The response from the view is then passed to the formatter. This
 allows extra transformations to be applied for the given format. An
-example of this would be converting a series of Vectors into HTML
+example of this would be converting a series of vectors into HTML
 using Hiccup.
 
 Finally, the response is formatted according to the serialization
 type. This framework has been used to respond to request
 simultaneously over an HTTP and XMPP connection. This allows any final
-transformations to be applied. (ie. adding common headers)
+transformations to be applied (eg, adding common headers).
 
 In addition to the main thread of request and response, triggers can
 also be defined. When a matching action is invoked, the request and
@@ -71,13 +71,13 @@ a request that needs to be processed, possibly changing state,
 returning a result that is then transformed into a desired output
 format, and then either returned or processed in some other fashion.
 
-'resolve-routes' takes 2 parameters; a sequence of predicates, and a
+'resolve-routes' takes 2 parameters: a sequence of predicates, and a
 sequence of matcher pairs. A "handler" function is then returned that
 takes a request map and then returns a response.
 
 When a request is being processed, Ciste will iterate over the
-sequence of matchers and apply the predicates functions. The first
-matcher to return a non-nil result will then invoke it's action.
+sequence of matchers and apply the predicates. The first
+matcher to return a non-nil result will then invoke its action.
 
 A matcher pair is a sequence containing 2 maps. The first map contains
 data that will be used by the predicates to determine if the request
@@ -87,9 +87,9 @@ will be used if the matcher is selected.
 The predicate sequence is a list of predicate functions. Each function
 takes the matcher data as the first argument and the request as the
 second. Each predicate will perform some test, possibly using data
-contained in the matcher map as it's arguments. If the predicate
+contained in the matcher map as its arguments. If the predicate
 passes, it returns a map containing the new request map for the next
-step in the chain. (Usually the request is simply returned unmodified)
+step in the chain. Usually the request is simply returned unmodified.
 
 ## Invoking an Action
 
@@ -99,7 +99,7 @@ steps, ultimately returning the final result.
 First, the Filter is called. The Filter will extract all of the
 necessary parameters from the serialization-specific request and call
 the serialization-agnostic Action. The Action will produce a result,
-which is then returned by the filter.
+which is then returned by the Filter.
 
 Next, the request map and the returned data are passed to the View
 function. Views are specific to the Format in use. The View will
@@ -122,7 +122,7 @@ the Serialization type. Place things that need to apply to every
 request here. If Ciste is being used in a Ring application, there is
 no need to perform any IO, and the map can simply be returned. It is
 possible to write Serializers that will respond to a request by
-transmitting the response in any variety of ways. (XMPP, Email,
+transmitting the response in any number of ways. (XMPP, Email,
 Filesystem, etc.) 
 
 ## Actions
