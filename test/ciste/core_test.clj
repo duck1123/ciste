@@ -25,5 +25,4 @@
        true)
 
      (foo) => true))
-
  )

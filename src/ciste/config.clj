@@ -14,14 +14,16 @@
   Example:
 
   (use 'ciste.config)
-  (load-config)
+  (load-config!)
   (set-environment! :default)
   (config :option1) => \"foo\"
   (config :option3) => [\"foo\" \"bar\" \"baz\"]
   (config :option2 :title) => \"BAR\""
   (:require [clojure.java.io :as io]
             [clojure.string :as string]
-            [clojure.tools.logging :as log]
+            [taoensso.timbre :as timbre]
+            [clojurewerkz.propertied.properties :as p]
+            [environ.core :refer [env]]
             [slingshot.slingshot :refer [throw+ try+]])
   (:import java.io.FileNotFoundException
            java.net.InetAddress))
@@ -37,7 +39,7 @@
   ^{:dynamic true
     :doc "The full config map for all environments is stored
           in this ref"}
-  *environments* (ref {}))
+  *config-map* (ref {}))
 
 (defonce
   ^{:dynamic true
@@ -88,28 +90,27 @@
 
 (defn get-resource
   [filename]
-  (some-> (or (let [f (io/file filename)]
-                (when (.exists f) f))
-              (io/resource filename))
-          slurp
-          ;; TODO: Use EDN reader
-          read-string))
+  (or (let [f (io/file filename)]
+        (when (.exists f) f))
+      (io/resource filename)))
 
-(defn load-config
-  "Loads the config file into the environment.
-
-  Defaults to config.clj if not specified"
-  ([] (load-config "config.clj"))
+(defn load-config!
+  "Loads the config file into the environment."
+  ([] (load-config!"config.properties"))
   ([filename]
-   (when-let [options (get-resource filename)]
-     (dosync
-      (ref-set *environments* options)))))
+   (timbre/infof "Loading config file: %s" filename)
+   (when-let [file (get-resource filename)]
+     (let [options (p/load-from file)]
+       (dosync
+        (ref-set *config-map* options))))))
 
 (defn read-site-config
   "Read the site config file"
   ([] (read-site-config default-site-config-filename))
   ([filename]
-   (or (get-resource filename)
+   (or (when-let [res (some-> filename get-resource)]
+         (timbre/infof "Reading site config: %s" res)
+         (some-> res slurp read-string))
        (throw+ "Could not find service config."))))
 
 ;; TODO: This should attempt to write the config back to the same
@@ -118,28 +119,15 @@
   "Write the current config settings to file"
   ([] (write-config! "config.clj"))
   ([filename]
-   (->> @*environments*
+   (->> @*config-map*
         clojure.pprint/pprint
         with-out-str
         (spit filename))))
 
 (defn config*
   "Like config, but does not throw an exception if the key cannot be found."
-  ([]
-   (get @*environments* (environment)))
-  ([& ks]
-   (let [env-val (get-in (config*) ks)
-         default-val (get-in (:default @*environments*) ks)
-         value (if (nil? env-val)
-                 default-val
-                 env-val)
-         response (if (map? env-val)
-                    (merge-config env-val default-val)
-                    value)]
-     #_(let [config-part (str "(config " (string/join " " ks) ")")
-             default-part (if (= response default-val) ":default" "")]
-         (log/debug (format "%-35s => %-20s %s" config-part (pr-str response) default-part)))
-     response)))
+  [& ks]
+  (get @*config-map* (string/join "." (map name ks))))
 
 (defn config
   "Returns the option matching the key sequence in the global config map for the
@@ -158,14 +146,15 @@
   "Set the value of the config setting matching the key sequence"
   [ks value]
   (dosync
-   (alter *environments*
+   (alter *config-map*
           assoc-in (concat [(environment)] ks) value))
   value)
 
 (defn set-environment!
   "Sets's the environment globally"
   [env]
-  (log/debugf "Setting environment to %s" env)
+  (timbre/with-context {:env env}
+    (timbre/debugf "Setting environment - %s" env))
   (dosync (reset! *environment* env)))
 
 (defmacro with-environment
@@ -183,10 +172,10 @@
        (describe-config [:print :request]
          :boolean
          \"Should the request be logged?\")"
-  [ks type docstring & {:as body}]
+  [ks datatype docstring & {:as body}]
   (let [m (merge {:path ks
                   :doc docstring
-                  :type type}
+                  :type datatype}
                  body)]
     `(dosync
       (alter *doc-maps* assoc ~ks ~m))))
@@ -202,7 +191,6 @@
 (defn load-site-config
   "Read the site config and store it for later use"
   []
-  (let [site-config (read-site-config)]
+  (let [site-config (read-site-config (env :ciste-config default-site-config-filename))]
     (dosync
      (ref-set default-site-config site-config))))
-

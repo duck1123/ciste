@@ -1,9 +1,9 @@
 (ns ciste.workers
   "Workers are tasks functions that run on their own thread p for a time,
-sleep, and then run again. Generally, tasks that will repeatedly run. A
-worker can be started and stopped by any thread. When a worker is
-stopped, it will continue until the next time that it exits. You can
-check if it's stopping within your code if you wish to exit earlier.
+  sleep, and then run again. Generally, tasks that will repeatedly run. A
+  worker can be started and stopped by any thread. When a worker is
+  stopped, it will continue until the next time that it exits. You can
+  check if it's stopping within your code if you wish to exit earlier.
 
     (defworker :queue-checker
       [queue-name]
@@ -12,13 +12,11 @@ check if it's stopping within your code if you wish to exit earlier.
     (start-worker! :queue-checker) => 1
     (stop-worker! 1) => nil
     (stop-all-workers!) => nil"
-    (:require [ciste.config :as config]
-              [ciste.config :refer [config describe-config]]
-              [clj-factory.core :refer [defseq fseq]]
-              [clojure.core.incubator :refer [dissoc-in]]
-              [clojure.string :as string]
-              [clojure.tools.logging :as log])
-    (:import java.net.InetAddress))
+  (:require [ciste.config :refer [config describe-config]]
+            [clj-factory.core :refer [defseq fseq]]
+            [clojure.string :as string]
+            [taoensso.timbre :as timbre])
+  (:import java.net.InetAddress))
 
 (defonce ^:dynamic *workers* (ref {}))
 (defonce ^:dynamic *current-name* nil)
@@ -48,11 +46,11 @@ check if it's stopping within your code if you wish to exit earlier.
 
 (defn stopping?
   ([]
-     (stopping? (current-id)))
+   (stopping? (current-id)))
   ([id]
-     (-> @*workers*
-         (get id)
-         :stopping)))
+   (-> @*workers*
+       (get id)
+       :stopping)))
 
 (defn worker-keys
   "Returns a sequence of registered worker types"
@@ -69,16 +67,18 @@ check if it's stopping within your code if you wish to exit earlier.
           (loop []
             (try
               (apply inner-fn name args)
-              (catch Exception e (log/error e "Uncaught exception")))
+              (catch Exception ex
+                (timbre/error ex "Uncaught exception")))
             (if-let [stopping (stopping? id)]
-              (log/debug (str "(stopping? " name " " id "): " stopping))
+              (timbre/debugf "(stopping? %s %s): %s" name id stopping)
               (do (Thread/sleep (config :worker-timeout))
                   (recur)))))
-        (catch Exception e)
+        (catch Exception ex
+          (timbre/error ex "Uncaught exception"))
         (finally
-         (log/info (str "Worker " name " (" id ") finished"))
-         (dosync
-          (alter *workers* dissoc id)))))))
+          (timbre/infof "Worker %s (%s) finished" name id)
+          (dosync
+           (alter *workers* dissoc id)))))))
 
 (defn get-host-name
   "Returns the hostname of the host's local adapter."
@@ -87,7 +87,7 @@ check if it's stopping within your code if you wish to exit earlier.
 
 (defn- start-worker*
   [name id worker-fn args]
-  (log/info (str "Starting worker " name "(" (string/join " " args) ") => " id))
+  (timbre/infof "Starting worker %s(%s) => %s" name (string/join " " args) id)
   (let [inst (apply worker-fn name args)
         m {:worker inst
            :host (get-host-name)
@@ -102,11 +102,11 @@ check if it's stopping within your code if you wish to exit earlier.
   ([] (increment-counter! 1))
   ([n] (increment-counter! (current-id) n))
   ([id n]
-     (dosync
-      (alter *workers*
-             (fn [w]
-               (let [counter (get-in w [id :counter])]
-                 (assoc-in w [id :counter] (+ counter n))))))))
+   (dosync
+    (alter *workers*
+           (fn [w]
+             (let [counter (get-in w [id :counter])]
+               (assoc-in w [id :counter] (+ counter n))))))))
 
 (defmacro defworker
   "Define a worker named `name'"
@@ -132,6 +132,6 @@ check if it's stopping within your code if you wish to exit earlier.
 (defn stop-all-workers!
   "Tell all workers to stop"
   []
-  (log/info "Stopping all workers")
+  (timbre/info "Stopping all workers")
   (doseq [[id _] @*workers*]
     (stop-worker! id)))

@@ -1,5 +1,7 @@
 # Ciste ("she steh")
 
+[![Build Status](http://build.jiksnu.org/job/ciste/branch/develop/badge/icon)](http://build.jiksnu.org/job/ciste/branch/develop/)
+
 Ciste is a Lojban word meaning:
 
 x1 (mass) is a system interrelated by structure x2 among components x3
@@ -24,7 +26,7 @@ for controlling aspects of the system from remote clients.
 
 Add the following to your project.clj dependencies
 
-    [ciste "0.5.0-SNAPSHOT"]
+[![Clojars Project](http://clojars.org/ciste/latest-version.svg)](http://clojars.org/ciste)
 
 ## Running a Ciste Application
 

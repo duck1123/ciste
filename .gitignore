@@ -1,10 +1,6 @@
-.circumspec
-.lein-deps-sum
-.lein-failures
+.lein*
 *.jar
-autodoc
-classes
 docs
-lib
 target
 pom.xml
+/TAGS

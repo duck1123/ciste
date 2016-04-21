@@ -1,18 +1,18 @@
 (ns ciste.core
   "Any fundamental state changes in your application should take place
-through an action. Any time you create, update, or delete a resource,
-you should use an action. Actions are analogous to the Controller in a
-traditional MVC design.
+  through an action. Any time you create, update, or delete a resource,
+  you should use an action. Actions are analogous to the Controller in a
+  traditional MVC design.
 
-When an action is executed, if the config path [:print :actions] is
-enabled, then the action will be logged.
+  When an action is executed, if the config path [:print :actions] is
+  enabled, then the action will be logged.
 
-Actions are simply functions. An Action can take any number of
-parameters and should return any logically true value if the action
-succeeded."
+  Actions are simply functions. An Action can take any number of
+  parameters and should return any logically true value if the action
+  succeeded."
   (:require [ciste.config :refer [config describe-config]]
             [ciste.event :refer [defkey notify]]
-            [clojure.tools.logging :as log]))
+            [taoensso.timbre :as timbre]))
 
 (describe-config [:print :actions]
   :boolean
@@ -20,7 +20,8 @@ succeeded."
 
 (describe-config [:use-pipeline]
   :boolean
-  "If true, the result of executing this action will be enqueued to the action channel.")
+  "If true, the result of executing this action will be enqueued to the
+action channel.")
 
 (defkey ::action-run
   "every action that is run")
@@ -48,18 +49,18 @@ Rebind this var to set the format for the current request."}
   "Set the bindings for both the serialization and the format"
   [[serialization format] & body]
   `(with-serialization ~serialization
-    (with-format ~format
-      ~@body)))
+     (with-format ~format
+       ~@body)))
 
 (defmacro defaction
   "Define an Action.
 
-An Action is similar to a ordinary function except that it announces itself to
-the action channel, it logs it's execution."
+  An Action is similar to a ordinary function except that it announces itself to
+  the action channel, it logs it's execution."
   [name & forms]
   (let [[docs forms] (if (string? (first forms))
-                         [(first forms) (rest forms)]
-                         ["" forms])
+                       [(first forms) (rest forms)]
+                       ["" forms])
         [args & forms] forms]
     `(do
        (defn ~name

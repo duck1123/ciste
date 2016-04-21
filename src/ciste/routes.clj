@@ -67,9 +67,15 @@
             [ciste.formats :as formats]
             [ciste.views :as views]
             [clojure.string :as string]
-            [clojure.tools.logging :as log]
             [clojurewerkz.eep.emitter :refer [defobserver]]
-            [slingshot.slingshot :refer [throw+]]))
+            [slingshot.slingshot :refer [throw+]]
+            [taoensso.timbre :as timbre]))
+
+(defkey ::route-matched
+  "matched")
+
+(defkey ::action-invoked
+  "Whenever an action is invoked")
 
 (defkey ::matcher-matched
   "Whenever a matcher matched")
@@ -162,22 +168,24 @@
             {:action action
              :request request})
     (with-context [serialization format]
-      (some->> request
-               (filter-action action)
-               (views/apply-view request)
-               (apply-template request)
-               (formats/format-as format request)
-               (serialize-as *serialization*)))))
+      (if-let [response (filter-action action request)]
+        (if-let [response (views/apply-view request response)]
+          (if-let [response (apply-template request response)]
+            (if-let [response (formats/format-as format request response)]
+              (if-let [response (serialize-as *serialization* response)]
+                response
+                (timbre/warn "serialization returned nil"))
+              (timbre/warn "format returned nil"))
+            (timbre/warn "template returned nil"))
+          (timbre/warn "view returned nil"))
+        (timbre/warn "filter returned nil")))))
 
 (defn resolve-route
   "If the route matches the predicates, invoke the action"
   [predicates [matcher {:keys [action format serialization] :as res}] request]
   (when-let [request (try-predicates request matcher (lazier predicates))]
-    (let [format (or (:format request)
-                     (some-> request :params :format keyword)
-                     format)
-          serialization (or (:serialization request)
-                            serialization)
+    (let [format (or (:format request) (some-> request :params :format keyword) format)
+          serialization (or (:serialization request) serialization)
           request (merge request res
                          {:action action
                           :format format
@@ -190,27 +198,13 @@
   first match."
   [predicates routes]
   (fn [request]
-    (notify ::route-invoked
-            {:request request})
+    (notify ::route-invoked {:request request})
     (->> (for [route (lazier routes)]
            (when-let [response (resolve-route predicates route request)]
-             (notify :ciste:route:matched
+             (notify ::route-matched
                      {:route route
                       :request request
                       :response response})
              response))
          (filter identity)
          first)))
-
-(defobserver emitter ::predicate-tested
-  (fn [event]
-    (log/spy :info event)))
-
-(defobserver emitter ::matcher-tested
-  (fn [event]
-    (log/spy :info event)))
-
-(defobserver emitter ::matcher-matched
-  (fn [event]
-    (log/spy :info event)))
-

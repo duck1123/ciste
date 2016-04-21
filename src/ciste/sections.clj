@@ -1,14 +1,14 @@
 (ns ciste.sections
   "Sections are a series of multimethods for generically transforming
-records into the most appropriate format.
+  records into the most appropriate format.
 
-A Section dispatches on a Vector containing the type of the first
-argument or the type of the first element of the first argument if the
-Section has been defined as a :seq type, the Format, and
-the Serialization. If no match is found, the final value is removed
-and tried again. This repeats until there is only the type.
+  A Section dispatches on a Vector containing the type of the first
+  argument or the type of the first element of the first argument if the
+  Section has been defined as a :seq type, the Format, and
+  the Serialization. If no match is found, the final value is removed
+  and tried again. This repeats until there is only the type.
 
-Example:
+  Example:
 
     (declare-section show-section)
     (declare-section index-section :seq)
@@ -27,8 +27,8 @@ Example:
             [:li (show-section user)])
           users)])"
   (:require [ciste.core :refer [*format* *serialization*]]
-            [ciste.event :refer [notify]]
-            [clojure.tools.logging :as log]))
+            [ciste.event :refer [defkey notify]]
+            [taoensso.timbre :as timbre]))
 
 (defn record-class
   "Returns the class of the first parameter"
@@ -64,7 +64,7 @@ Example:
   "Setup a section with the given name"
   [name & opts]
   (let [dispatch-name (if (= (first opts) :seq)
-                         "record-class-seq" "record-class" )
+                        "record-class-seq" "record-class" )
 
         ;; Find a way to make this automatic
         ;; One option would be to capture the ns outside the defmacro,
@@ -106,7 +106,10 @@ Example:
 
 (defn log-section
   [sym dispatch-val]
-  (log/debugf "%s - %s" dispatch-val sym))
+  (timbre/debugf "%s - %s" dispatch-val sym))
+
+(defkey ::section-run
+  "sections run")
 
 (defmacro defsection
   [section-name dispatch-val binding-form & body]
@@ -131,4 +134,3 @@ Example:
                     :args     args#})
            ~@body)))
     (throw (IllegalArgumentException. (str "Can not resolve section: " name)))))
-

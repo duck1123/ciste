@@ -1,8 +1,8 @@
 (ns ciste.sections-test
-  (:use [ciste.core :only [with-context]]
-        [ciste.sections :only [record-class-serialization]]
-        [ciste.test-helper :only [test-environment-fixture]]
-        [midje.sweet :only [fact =>]]))
+  (:require [ciste.core :refer [with-context]]
+            [ciste.sections :refer [record-class-serialization]]
+            [ciste.test-helper :refer [test-environment-fixture]]
+            [midje.sweet :refer [fact =>]]))
 
 (defrecord User [])
 

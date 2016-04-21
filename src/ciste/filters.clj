@@ -1,17 +1,17 @@
 (ns ciste.filters
   "Filters are methods of the multimethod apply-filter. A Filter
-dispatches on the Action and the Serialization. A Filter takes 2
-arguments: The Action, and the request map.
+  dispatches on the Action and the Serialization. A Filter takes 2
+  arguments: The Action, and the request map.
 
-It is the job of the Filter to parse the request map and produce the
-options to be passed to Action. The Filter must call that action with
-the appropriate arguments.
+  It is the job of the Filter to parse the request map and produce the
+  options to be passed to Action. The Filter must call that action with
+  the appropriate arguments.
 
-While it is possible to modify the response from the Action, it is
-recommended that filters not modify responses. (That would belong in
-the view.)
+  While it is possible to modify the response from the Action, it is
+  recommended that filters not modify responses. (That would belong in
+  the view.)
 
-Example:
+  Example:
 
     (defaction login
       [username password]
@@ -23,7 +23,8 @@ Example:
       (let [{{:keys [username password]} :params}]
         (action username password)))"
   (:require [ciste.core :refer [*serialization*]]
-            [ciste.event :refer [notify]]))
+            [ciste.event :refer [defkey notify]]
+            [taoensso.timbre :as timbre]))
 
 (defn filter-action-dispatch
   "Dispatch function for filter-action.
@@ -34,6 +35,15 @@ Example:
   [action *serialization*])
 
 (defmulti filter-action filter-action-dispatch)
+
+(defmethod filter-action :default
+  [action {:keys [serialization] :as request}]
+  ;; (timbre/with-context {:action action :serialization serialization}
+  ;;   (timbre/debugf "Running default filter %s %s" action serialization))
+  (action request))
+
+(defkey ::filter-run
+  "All filters that have been run")
 
 ;; TODO: fall back to filtering on just the serialization
 (defmacro deffilter

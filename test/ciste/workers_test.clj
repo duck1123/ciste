@@ -3,16 +3,16 @@
             [ciste.test-helper :refer [test-environment-fixture]]
             [ciste.workers :refer [current-id defworker get-host-name
                                    start-worker! stop-all-workers! stopping?]]
-            [clojure.tools.logging :as log]
-            [midje.sweet :refer [fact falsey throws truthy =>]]))
+            [midje.sweet :refer :all]
+            [taoensso.timbre :as timbre]))
 
-(fact "get-host-name"
+(future-fact "get-host-name"
   (fact "should return a string"
     (get-host-name) => string?))
 
 (test-environment-fixture
 
- (fact "#'current-id"
+ (future-fact "#'current-id"
    (fact "when called outside of a worker"
      (fact "should throw an exception"
        (current-id) => (throws RuntimeException)))
@@ -33,7 +33,7 @@
            @(:worker worker)
            @resp => (:id worker))))))
 
- (fact "#'stop-all-workers!"
+ (future-fact "#'stop-all-workers!"
    (fact "When there all no workers"
      (fact "should simply return"
        (stop-all-workers!) =not=> (throws Exception)))
@@ -41,7 +41,7 @@
    (fact "When there are multiple workers"
      (defworker ::stop-all-workers-test
        []
-       (log/infof "Running worker #%s" (current-id)))
+       (timbre/infof "Running worker #%s" (current-id)))
 
      (let [workers  (doall
                      (map

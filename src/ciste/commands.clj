@@ -4,7 +4,7 @@
             [ciste.routes :refer [resolve-routes]]
             [ciste.views :refer [defview]]
             [clojure.string :as string]
-            [clojure.tools.logging :as log]))
+            [taoensso.timbre :as timbre]))
 
 (defonce
   ^{:dynamic true
@@ -21,25 +21,22 @@
 
 (defn add-command!
   "Adds the fn identified by var v as the command handler for the given name."
-  [name v]
-  (log/debugf "Registering command: %s" name)
+  [command-name v]
+  (timbre/with-context {:name command-name}
+    (timbre/debugf "Registering command - %s" command-name))
   (dosync
-   (alter *commands* assoc name v)))
+   (alter *commands* assoc command-name v)))
 
-
-;; TODO: This should take only a single command map
 (defn parse-command
   "Takes a sequence of key/value pairs and runs a command"
-  [{:as command}]
-  (let [{:keys [name args]} command]
-    (log/infof "parsing command: %s %s" name
-               (string/join " " args))
-    ((->> @*commands*
-          (map (fn [[k v]] [{:name k} {:action v
-                                      :format :clj}]))
-          (resolve-routes @*command-predicates*))
-     (merge {:serialization :command}
-            command))))
+  [{command-name :name :keys [args] :as command}]
+  (timbre/with-context {:name command-name :args (string/join " " args)}
+    (timbre/infof "parsing command - %s" command-name))
+  (let [f (->> @*commands*
+               (map (fn [[k v]] [{:name k} {:action v
+                                            :format :clj}]))
+               (resolve-routes @*command-predicates*))]
+    (f (merge {:serialization :command} command))))
 
 ;; Should this return a set?
 (defn command-names
@@ -60,4 +57,3 @@
 (defview #'command-names :json
   [request names]
   {:body names})
-

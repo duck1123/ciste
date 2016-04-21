@@ -1,7 +1,7 @@
 (ns ciste.middleware
   (:use [ciste.config :only [config]])
   (:require [clojure.pprint :as p]
-            [clojure.tools.logging :as log]))
+            [taoensso.timbre :as timbre]))
 
 (defn wrap-http-serialization
   [handler]
@@ -32,4 +32,3 @@
         (if (config :print :params)
           (p/pprint response))
         response))))
-

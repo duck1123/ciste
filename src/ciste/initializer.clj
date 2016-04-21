@@ -1,7 +1,7 @@
 (ns ciste.initializer
   (:require [ciste.config :refer [environment*]]
             [clojure.string :as string]
-            [clojure.tools.logging :as log]))
+            [taoensso.timbre :as timbre]))
 
 
 (defonce ^:dynamic *initializers* (ref []))
@@ -9,31 +9,31 @@
 
 (defn add-initializer
   [init-ns init-fn]
-  (log/debugf "adding initializer - %s" init-ns)
+  (timbre/debugf "adding initializer - %s" init-ns)
   (dosync
    (alter *initializers* conj [init-ns init-fn]))
   (try
     (when (environment*) (init-fn))
     (catch RuntimeException ex
-      (log/error "Error running initializer" ex)
+      (timbre/error ex "Error running initializer")
       (System/exit -1))))
 
 (defmacro definitializer
   "Defines an initializer. When an environment is bound, the initializers will
-be run in the order that they are loaded.
+  be run in the order that they are loaded.
 
-Initializers are blocks of code that need to set up the environment of
-the namespace, but cannot run until the configuration system is
-available with a valid environment.
+  Initializers are blocks of code that need to set up the environment of
+  the namespace, but cannot run until the configuration system is
+  available with a valid environment.
 
-Whenever the environment is changed, the initializers will run in the
-order they were declared.
+  Whenever the environment is changed, the initializers will run in the
+  order they were declared.
 
-Note: At this time, Initializers will be re-run if the namespace is
-reloaded. For this reason, it is recommended that initializers be able
-to handle being run multiple times gracfully.
+  Note: At this time, Initializers will be re-run if the namespace is
+  reloaded. For this reason, it is recommended that initializers be able
+  to handle being run multiple times gracfully.
 
-Example:
+  Example:
 
     (ns ciste.example
       (:use [ciste.config :only (definitializer)]))
@@ -57,9 +57,7 @@ Example:
 (defn run-initializers!
   "Run all initializers"
   []
-
-  (log/debug "running initializers")
+  (timbre/debug "running initializers")
   (doseq [[init-ns init-fn] @*initializers*]
-    (log/debugf "running initializer - %s" init-ns)
+    (timbre/debugf "running initializer - %s" init-ns)
     (init-fn)))
-
